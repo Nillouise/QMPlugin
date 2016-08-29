@@ -1,0 +1,42 @@
+// QMPlugin.idl : QMPlugin.dll 的类型库源
+// 此文件将由 MIDL 编译器处理以产生
+// 类型库(QMPlugin.tlb)。
+
+#include "olectl.h"
+[ uuid(C86D6F66-5A41-42A2-BC25-DA09822925D0), version(1.0) ]
+library QMPlugin
+{
+	importlib("stdole32.tlb");
+	importlib("stdole2.tlb");
+	//  QMPlugin 的主调度接口
+		
+	[ uuid(EB62CBA9-5F62-44DF-9154-D33BF5DF213B) ]
+	dispinterface IQMPlugin
+	{
+		properties:
+		methods:
+			[id(1)] BSTR Test1();
+			[id(2)] long Test2(long iNumber1, long iNumber2);
+			[id(3)] BSTR Test3(BSTR bstrString1, BSTR bstrString2);
+			[id(4)] void GetScreenResolution(VARIANT* ResolutionX, VARIANT* ResolutionY);
+	};
+
+	//  QMPlugin 的类信息
+
+
+		[ uuid(EE1035BA-1025-4cde-AD4C-A04B3878BF00) ]
+	dispinterface IQMPluginStandard
+	{
+		properties:
+		methods:
+			[id(1)] BSTR Get_Plugin_Description(BSTR bstrItemName);
+			[id(2)] BSTR Get_Plugin_Interpret_Template(BSTR bstrItemName);
+	};
+
+	[ uuid(B0103678-8D56-4946-9C47-59B02AA4D91C) ]
+	coclass QMPlugin
+	{
+		[default] dispinterface IQMPlugin;
+		dispinterface IQMPluginStandard;
+	};
+};
