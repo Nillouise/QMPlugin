@@ -274,6 +274,8 @@ BSTR CQMPlugin::GetPluginInterpretTemplate(LPCTSTR bstrItemName)
 }
 #include"Cdmsoft.h"
 #include"test.h"
+#include<fstream>
+
 
 //这是第一个插件函数，返回一个字符串
 BSTR CQMPlugin::Test1() 
@@ -291,19 +293,19 @@ long CQMPlugin::Test2(long iNumber1, long iNumber2)
 	HRESULT hr = CLSIDFromProgID(OLESTR("dm.dmsoft"), &clsid);
 	dm.CreateDispatch(clsid);
 	dm.Reg(L"dieofai3e4c4149f6970cd69b4fc3af7ac85de4", L"0001");
-	//	test::testdm(dm);
-//	test::findpic(dm);
-	dm.MoveTo(100, 100);
-	if (dm.RightClick() == 1)
+
+	dm.RightClick();
+	std::wofstream txtDebug(L"C:\\code\\dm\\QMDebug.txt",std::ios::app);
+	test::findMonster(dm);
+	auto &mon = test::vecMonster;
+	for (auto iter = mon.begin(); iter != mon.end(); iter++)
 	{
-		MessageBox(NULL, dm.Ver(), L"fdsf", 0);
+		txtDebug << (*iter).x << " " << (*iter).y << std::endl;
 	}
-	else {
-		MessageBox(NULL, dm.Ver(), L"no", 0);
-	}
-	dm.RightClick();
-	dm.RightClick();
-	dm.RightClick(); dm.RightClick();
+	//CString cs = dm.FindColorBlockEx(0, 0, 800, 600, L"00FF00-505050", 0.98, 400, 50, 25);
+	//txtDebug << cs << std::endl;
+	txtDebug.close();
+
 	return iNumber1 * iNumber2;
 }
 

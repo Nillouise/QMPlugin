@@ -4,31 +4,26 @@
 #include<fstream>
 #include<queue>
 #include<functional>
+#include<cmath>
+using namespace test;
 std::string SetKey;
 DWORD SetKeyTime;
 int SetInterupt;
 int(*SetCallback)(int x);
 
-int KeyDefaultCallback(int x)
-{
-	return 0;
-}
-class CKeyOp
-{
-public:
-	std::wstring Key;
-	DWORD KeyTime;
-	int(*KeyCallback)(int x);
-	int KeyType;
-	CKeyOp(std::wstring Key = L"", DWORD KeyTime = 0,  int KeyType = 0, int(*KeyCallback)(int) = KeyDefaultCallback) :Key(Key), KeyTime(KeyTime), KeyCallback(KeyCallback), KeyType(KeyType) {}
-};
-bool operator < (const CKeyOp &t1, const CKeyOp &t2)
+bool test::operator < (const CKeyOp &t1, const CKeyOp &t2)
 {
 	return t1.KeyTime < t2.KeyTime;
 }
 
-CRITICAL_SECTION g_csKeyOp;
-std::priority_queue<CKeyOp> pqKeyOp;
+
+int test::KeyDefaultCallback(int x)
+{
+	return 0;
+}
+
+CRITICAL_SECTION test::g_csKeyOp;
+std::priority_queue<CKeyOp> test::pqKeyOp;
 
 int KeyboardInput()
 {
@@ -115,25 +110,34 @@ void test::moveto(Cdmsoft dm)
 void test::keypress(Cdmsoft dm)
 {
 }
-class CMonster
-{
-public:
-	int x;
-	int y;
-	int width;
-	int height;
-	int hitTime;
 
-	CMonster(int x,int y,int width=0,int height=0,int hitTime=0):x(x),y(y),width(width),height(height),hitTime(hitTime)
-	{
-		
-	}
-};
-std::queue<CMonster> pqMonster;
+std::vector<test::CMonster> test::vecMonster;
+
+
 void test::minidnf(Cdmsoft dm)
 {
 	const std::wstring moncolor = L"ff0000";
+}
 
-
-
+long test::findMonster(Cdmsoft dm, int rangeX, int rangeY , int rangeWidth , int rangeHeight , WCHAR *MonColor, double similar , int PointCount , int monWidth , int monHeight )
+{
+	static DWORD pretime = GetTickCount();
+	CString cs = dm.FindColorBlockEx(rangeX, rangeY, rangeWidth, rangeHeight, MonColor, similar, PointCount, monWidth, monHeight);
+	long count = dm.GetResultCount(cs);
+	int prex = -100;
+	int prey = -100;
+	for (int i = 0; i < 1; i++)
+	{
+		VARIANT intX, intY;
+		int dm_ret = dm.GetResultPos(cs, i, &intX, &intY);
+		if (abs(intX.intVal - prex) < monWidth/3 && abs(intY.intVal - prey) < monHeight/3)
+		{
+			continue;
+		}
+		prex = intX.intVal;
+		prey = intY.intVal;
+		
+		vecMonster.push_back(CMonster(intX.intVal, intY.intVal));
+	}
+	return count;
 }

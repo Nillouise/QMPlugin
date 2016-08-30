@@ -4,7 +4,7 @@
 
 
  /* File created by MIDL compiler version 8.00.0603 */
-/* at Mon Aug 29 16:04:40 2016
+/* at Tue Aug 30 13:12:09 2016
  */
 /* Compiler settings for QMPlugin.idl:
     Oicf, W1, Zp8, env=Win32 (32b run), target_arch=X86 8.00.0603 
