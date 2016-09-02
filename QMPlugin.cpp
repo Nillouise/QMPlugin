@@ -294,17 +294,19 @@ long CQMPlugin::Test2(long iNumber1, long iNumber2)
 	dm.CreateDispatch(clsid);
 	dm.Reg(L"dieofai3e4c4149f6970cd69b4fc3af7ac85de4", L"0001");
 
+
 	dm.RightClick();
-	std::wofstream txtDebug(L"C:\\code\\dm\\QMDebug.txt",std::ios::app);
-	test::findMonster(dm);
-	auto &mon = test::vecMonster;
-	for (auto iter = mon.begin(); iter != mon.end(); iter++)
-	{
-		txtDebug << (*iter).x << " " << (*iter).y << std::endl;
-	}
-	//CString cs = dm.FindColorBlockEx(0, 0, 800, 600, L"00FF00-505050", 0.98, 400, 50, 25);
-	//txtDebug << cs << std::endl;
-	txtDebug.close();
+
+	test::minidnf(dm);
+	
+	//std::wofstream txtDebug(L"C:\\code\\QMDebug.txt",std::ios::app);
+	//test::findMonster(dm);
+	//auto &mon = test::vecMonster;
+	//for (auto iter = mon.begin(); iter != mon.end(); iter++)
+	//{
+	//	txtDebug << (*iter).x << " " << (*iter).y << std::endl;
+	//}
+	//txtDebug.close();
 
 	return iNumber1 * iNumber2;
 }

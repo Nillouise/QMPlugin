@@ -6,26 +6,28 @@
 #include<functional>
 #include<cmath>
 using namespace test;
-std::string SetKey;
-DWORD SetKeyTime;
-int SetInterupt;
-int(*SetCallback)(int x);
+
+std::vector<test::CMonster> test::vecMonster;
+CRITICAL_SECTION test::g_csKeyOp;
+std::priority_queue<CKeyOp,std::vector<CKeyOp>,std::greater<CKeyOp> > test::pqKeyOp;
 
 bool test::operator < (const CKeyOp &t1, const CKeyOp &t2)
 {
 	return t1.KeyTime < t2.KeyTime;
 }
-
+bool test::operator > (const CKeyOp &t1, const CKeyOp &t2)
+{
+	return t1.KeyTime > t2.KeyTime;
+}
 
 int test::KeyDefaultCallback(int x)
 {
 	return 0;
 }
 
-CRITICAL_SECTION test::g_csKeyOp;
-std::priority_queue<CKeyOp> test::pqKeyOp;
 
-int KeyboardInput()
+
+UINT __stdcall test::KeyboardInput(LPVOID)
 {
 	Cdmsoft dm;
 	::CoInitialize(NULL);
@@ -49,7 +51,9 @@ int KeyboardInput()
 			::LeaveCriticalSection(&g_csKeyOp);
 			continue;
 		}
-
+		std::wofstream txtDebug(L"C:\\code\\dm\\QMDebug.txt",std::ios::app);
+		txtDebug << keyop.Key<<" "<<keyop.KeyTime<<" "<<keyop.KeyType << " " << std::endl;
+		txtDebug.close();
 		pqKeyOp.pop();
 		::LeaveCriticalSection(&g_csKeyOp);
 
@@ -109,14 +113,40 @@ void test::moveto(Cdmsoft dm)
 
 void test::keypress(Cdmsoft dm)
 {
+
 }
 
-std::vector<test::CMonster> test::vecMonster;
+
 
 
 void test::minidnf(Cdmsoft dm)
 {
-	const std::wstring moncolor = L"ff0000";
+	::InitializeCriticalSection(&test::g_csKeyOp);
+	UINT uId;
+	HANDLE hKey = (HANDLE)::_beginthreadex(NULL, 0, test::KeyboardInput, NULL, 0, &uId);
+	srand((int)time(0));
+	MessageBox(NULL, L"C:\\code\\QMDebug.txt", L"LFD", 0);
+	while (true)
+	{
+		std::wstring k = (rand() % 2) == 0 ? L"LEFT" : L"RIGHT";
+		::EnterCriticalSection(&g_csKeyOp);
+		pqKeyOp.push(CKeyOp(k, GetTickCount() + 50,1));
+		pqKeyOp.push(CKeyOp(k, GetTickCount() + 400, 2));
+		::LeaveCriticalSection(&g_csKeyOp);
+		Sleep(1200);
+
+		std::wofstream txtDebug(L"C:\\code\\QMDebug.txt", std::ios::app);
+		test::findMonster(dm);
+		auto &mon = test::vecMonster;
+		txtDebug << "case : ";
+		for (auto iter = mon.begin(); iter != mon.end(); iter++)
+		{
+			txtDebug << (*iter).x << " " << (*iter).y << std::endl;
+		}
+		txtDebug.close();
+
+	}
+
 }
 
 long test::findMonster(Cdmsoft dm, int rangeX, int rangeY , int rangeWidth , int rangeHeight , WCHAR *MonColor, double similar , int PointCount , int monWidth , int monHeight )
@@ -126,6 +156,7 @@ long test::findMonster(Cdmsoft dm, int rangeX, int rangeY , int rangeWidth , int
 	long count = dm.GetResultCount(cs);
 	int prex = -100;
 	int prey = -100;
+	vecMonster.clear();
 	for (int i = 0; i < 1; i++)
 	{
 		VARIANT intX, intY;
