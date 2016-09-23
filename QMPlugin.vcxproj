@@ -108,6 +108,11 @@
     <None Include="res\QMPlugin.rc2" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CharRedEye.cpp" />
+    <ClCompile Include="grade.cpp" />
+    <ClCompile Include="image.cpp" />
+    <ClCompile Include="InstanceZones.cpp" />
+    <ClCompile Include="Neural.cpp" />
     <ClCompile Include="QMPlugin.cpp" />
     <ClCompile Include="Room.cpp" />
     <ClCompile Include="stdafx.cpp">
@@ -118,6 +123,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Cdmsoft.h" />
+    <ClInclude Include="CharRedEye.h" />
+    <ClInclude Include="grade.h" />
+    <ClInclude Include="image.h" />
+    <ClInclude Include="InstanceZones.h" />
+    <ClInclude Include="Neural.h" />
     <ClInclude Include="QMPlugin.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Room.h" />

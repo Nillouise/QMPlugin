@@ -283,7 +283,8 @@ BSTR CQMPlugin::Test1()
 	CString strResult = L"Hello, world!";
 	return strResult.AllocSysString();
 }
-
+#include"Room.h"
+#include"InstanceZones.h"
 //这是第二个插件函数，接受两个整数参数，返回两个整数的和
 long CQMPlugin::Test2(long iNumber1, long iNumber2) 
 {
@@ -294,11 +295,20 @@ long CQMPlugin::Test2(long iNumber1, long iNumber2)
 	dm.CreateDispatch(clsid);
 	dm.Reg(L"dieofai3e4c4149f6970cd69b4fc3af7ac85de4", L"0001");
 
-
-	dm.RightClick();
-
-	test::minidnf(dm);
+	::InitializeCriticalSection(&gandalfr::CKeyOp::g_csKeyOp);
+	g_insZone.loadNeural();
+	_beginthreadex(NULL, 0, gandalfr::CKeyOp::KeyboardInput, NULL, 0, NULL);
 	
+	DWORD curTime = ::GetTickCount();
+	while (::GetTickCount() - curTime <30*1000)
+	{
+		g_insZone.run(dm);
+	}
+
+
+	gandalfr::CKeyOp::m_RunTheKeyBoard = false;
+	Sleep(2000);
+
 	//std::wofstream txtDebug(L"C:\\code\\QMDebug.txt",std::ios::app);
 	//test::findMonster(dm);
 	//auto &mon = test::vecMonster;
