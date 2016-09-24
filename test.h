@@ -1,50 +1,52 @@
 #pragma once
-#include"Cdmsoft.h"
-#include<time.h>
-#include<vector>
-#include<queue>
-#include<functional>
+#include<iostream>
+#include<sstream>
+#include"Room.h"
+#include"InstanceZones.h"
+#include"Neural.h"
+#include"image.h"
+#include"CharRedEye.h"
+using namespace gandalfr;
 namespace test
 {
-	void testdm(Cdmsoft dm);
-	void findpic(Cdmsoft dm);
+	int OpenConsole();
 
-	void moveto(Cdmsoft dm);
-	void keypress(Cdmsoft dm);
-	UINT __stdcall KeyboardInput(LPVOID);
+	
+	
+	std::string RectToString(const CRectangle r);
 
-	void minidnf(Cdmsoft dm);
+	int InitialNeural();
+	int runInsZone(Cdmsoft dm);// it also can run while the neural thread is running
+	
+	int printSetKeyOp();
 
-	long findMonster(Cdmsoft dm, int rangeX = 0, int rangeY = 0, int rangeWidth = 800, int rangeHeight = 600,WCHAR *MonColor = L"ff0094-010101",double similar=1.0,int PointCount=500,int monWidth = 30,int monHeight =30);
-	class CMonster
-	{
-	public:
-		int x;
-		int y;
-		int width;
-		int height;
-		int hitTime;
-		CMonster(int x, int y, int width = 0, int height = 0, int hitTime = 0) :x(x), y(y), width(width), height(height), hitTime(hitTime) {};
-	};
-	int KeyDefaultCallback(int x);
-	class CKeyOp
-	{
-	public:
-		std::wstring Key;
-		DWORD KeyTime;
-		int(*KeyCallback)(int x);
-		int KeyType;
-		CKeyOp(std::wstring Key = L"", DWORD KeyTime = 0, int KeyType = 0, int(*KeyCallback)(int) = KeyDefaultCallback) :Key(Key), KeyTime(KeyTime), KeyCallback(KeyCallback), KeyType(KeyType) {}
-	};
-	bool operator < (const CKeyOp &t1, const CKeyOp &t2);
-	bool operator > (const CKeyOp &t1, const CKeyOp &t2);
-	extern std::vector<CMonster> vecMonster;
-	extern CRITICAL_SECTION g_csKeyOp;
-	extern std::priority_queue<CKeyOp, std::vector<CKeyOp>, std::greater<CKeyOp> > pqKeyOp;
+	int printCurNeural();
 
-	class RoomState {
-		std::vector<CMonster> vecMonster;
-		CRITICAL_SECTION g_csKeyOp;
-		std::priority_queue<CKeyOp, std::vector<CKeyOp>, std::greater<CKeyOp> > pqKeyOp;
-	};
+	int reset();
+
+
+	int PrintRoomState(Cdmsoft dm);
+
+	int estimateTotalRun(Cdmsoft dm);//a total run need how much time
+
+
+
+	extern int gtest_RunTheWholeNeural;
+	extern int gtest_pauseNeuralThread;
+	UINT beginKeyboardThread();
+	UINT exitKeyBoardThread();
+
+
+	UINT beginNeuralThread();
+	int pauseNeuralThread();
+	int restartNeuralThread();
+	int exitTheNeuralThread();
+
+	unsigned int __stdcall ThreadRunWhole(PVOID pM);
+	extern CRITICAL_SECTION cs_testNeuralThread;
+
+	int initialTest();
+	int printBestAreaAndPlayer();
+
+	int testGetPlayer(Cdmsoft dm);
 }

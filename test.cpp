@@ -1,174 +1,251 @@
 #include"stdafx.h"
-#include"test.h"
-#include<sstream>
-#include<fstream>
-#include<queue>
-#include<functional>
-#include<cmath>
-using namespace test;
+#include "test.h"
+#include<iostream>
+#include<iomanip>
+using namespace gandalfr;
+using namespace std;
 
-std::vector<test::CMonster> test::vecMonster;
-CRITICAL_SECTION test::g_csKeyOp;
-std::priority_queue<CKeyOp,std::vector<CKeyOp>,std::greater<CKeyOp> > test::pqKeyOp;
+int test::gtest_RunTheWholeNeural;
+int test::gtest_pauseNeuralThread;
+CRITICAL_SECTION test::cs_testNeuralThread;
 
-bool test::operator < (const CKeyOp &t1, const CKeyOp &t2)
+
+int test::OpenConsole()
 {
-	return t1.KeyTime < t2.KeyTime;
-}
-bool test::operator > (const CKeyOp &t1, const CKeyOp &t2)
-{
-	return t1.KeyTime > t2.KeyTime;
+//	AllocConsole();
+	freopen("C:\\test\test.txt", "w", stdout);
+	std::cout << "i'm cout" << std::endl;
+	return 0;
 }
 
-int test::KeyDefaultCallback(int x)
+
+std::string test::RectToString(const CRectangle r)
 {
+
+	stringstream ss;
+	ss<< "x: " << r.x << " y: " << r.y << " width: " << r.width << " height: " << r.height;
+	string s;
+	getline(ss, s);
+	return s;
+}
+
+int test::InitialNeural()
+{
+	g_insZone.loadNeural();
+
+	return 0;
+}
+
+int test::runInsZone(Cdmsoft dm)
+{
+	::EnterCriticalSection(&cs_testNeuralThread);
+	g_insZone.run(dm);
+	::LeaveCriticalSection(&cs_testNeuralThread);
+	return 0;
+}
+
+int test::printSetKeyOp()
+{
+	::EnterCriticalSection(&CKeyOp::g_csKeyOp);
+	for (auto iter = CKeyOp::m_setKeyOp.begin(); iter != CKeyOp::m_setKeyOp.end(); iter++)
+	{
+		wcout << iter->m_Key << L"\tkeyType:" << iter->m_KeyType  <<L"\ttime:"<< (((iter->m_KeyTime) / 100 % 600) / 10.0) <<"\tsignal:"<< iter->m_signal << endl;
+	}
+	::LeaveCriticalSection(&CKeyOp::g_csKeyOp);
+	return 0;
+}
+
+int test::printCurNeural()
+{
+	auto p = g_action.m_curActNeural;
+	if (p != NULL)
+	{
+		cout << "curNeural: " << typeid (*((p)->getClassType())).name() << " output:" << g_action.m_curActNeural->m_output << endl;
+	}
+	else
+		cout << "NULL" << endl;
+	return 0;
+}
+
+int test::reset()
+{
+	::EnterCriticalSection(&cs_testNeuralThread);
+	g_action.m_curActNeural = NULL;
+	g_AnyToActTemp[&g_action].clear();
+
+	::LeaveCriticalSection(&cs_testNeuralThread);
 	return 0;
 }
 
 
 
-UINT __stdcall test::KeyboardInput(LPVOID)
+
+int test::PrintRoomState(Cdmsoft dm)
 {
+	::EnterCriticalSection(&cs_testNeuralThread);
+	cout << "Gold:" << endl;
+	for (auto iter = g_RoomState.m_Gold.m_vecGold.begin(); iter != g_RoomState.m_Gold.m_vecGold.end(); iter++)
+	{
+		cout << test::RectToString(iter->m_rect)<<"\t";
+	}
+	cout << endl;
+
+	cout << "Monster:" << endl;
+	for (auto iter = g_RoomState.m_Monster.m_vecCMon.begin(); iter != g_RoomState.m_Monster.m_vecCMon.end(); iter++)
+	{
+		cout << test::RectToString(iter->m_rect)<<"\t";
+	}
+	cout << endl;
+
+	cout << "Obstacle:" << endl;
+	for (auto iter = g_RoomState.m_Obstacle.m_vecObstacle.begin(); iter != g_RoomState.m_Obstacle.m_vecObstacle.end(); iter++)
+	{
+		cout << test::RectToString(iter->m_rect)<<"\t";
+	}
+	cout << endl;
+
+	cout << "SceneBox:" << endl;
+	for (auto iter = g_RoomState.m_SceneBox.m_vecCSceneBox.begin(); iter != g_RoomState.m_SceneBox.m_vecCSceneBox.end(); iter++)
+	{
+		cout << test::RectToString(iter->m_rect)<<"\t";
+	}
+	cout << endl;
+	cout << "Player:" << endl;
+
+	cout << RectToString(g_RoomState.m_Player.m_rect) << endl;
+	::LeaveCriticalSection(&cs_testNeuralThread);
+
+	return 0;
+}
+
+int test::estimateTotalRun(Cdmsoft dm)
+{
+
+	::EnterCriticalSection(&cs_testNeuralThread);
+	DWORD curTime = ::GetTickCount();
+	g_insZone.run(dm);
+	cout << "run total one round need millisecond " << ::GetTickCount() - curTime << endl;
+	::LeaveCriticalSection(&cs_testNeuralThread);
+
+	return 0;
+}
+
+
+
+UINT test::beginKeyboardThread()
+{
+	static UINT uId;
+	static int oneThread = 0;
+	if (oneThread == 0)
+	{
+		_beginthreadex(NULL, 0, CKeyOp::KeyboardInput, NULL, 0, &uId);
+		cout << "begin KyeBoard Thread" << endl;
+		oneThread = 1;
+	}
+	return uId;
+}
+
+UINT test::exitKeyBoardThread()
+{
+	CKeyOp::m_RunTheKeyBoard = false;
+	cout << "exit The keyBoard Thread" << endl;
+
+	return 0;
+}
+
+UINT test::beginNeuralThread()
+{
+	static UINT uId;
+	if (gtest_RunTheWholeNeural == 0)
+	{
+		gtest_RunTheWholeNeural = 1;
+		_beginthreadex(NULL, 0, ThreadRunWhole, NULL, 0, &uId);
+		cout << "begin Neural Thread" << endl;
+	}
+	return uId;
+}
+
+int test::pauseNeuralThread()
+{
+	cout << "pause Neural thread" << endl;
+	gtest_pauseNeuralThread = 1;
+	return 0;
+}
+
+int test::restartNeuralThread()
+{
+	cout << "restart Neural Thread" << endl;
+	gtest_pauseNeuralThread = 0;
+	return 0;
+}
+
+int test::exitTheNeuralThread()
+{
+	gtest_RunTheWholeNeural = 0;
+	gtest_pauseNeuralThread = 0;
+	return 0;
+}
+
+unsigned int __stdcall test::ThreadRunWhole(PVOID pM)
+{
+	::CoInitialize(NULL);//初始化线程COM库
 	Cdmsoft dm;
-	::CoInitialize(NULL);
-	CLSID clsid;
-	HRESULT hr = CLSIDFromProgID(OLESTR("dm.dmsoft"), &clsid);
-	dm.CreateDispatch(clsid);
+	dm.CreateDispatch(L"dm.dmsoft");
+	gtest_RunTheWholeNeural = 1;
+	gtest_pauseNeuralThread = 0;
 
-	CKeyOp keyop;
-	while (true)
+	while (gtest_RunTheWholeNeural)
 	{
-		Sleep(20);
-		::EnterCriticalSection(&g_csKeyOp);
-		if (pqKeyOp.empty())
+		while (gtest_pauseNeuralThread==1)
 		{
-			LeaveCriticalSection(&g_csKeyOp);
-			continue;
+			Sleep(10);
 		}
-		keyop = pqKeyOp.top();
-		if (keyop.KeyTime > GetTickCount())
-		{
-			::LeaveCriticalSection(&g_csKeyOp);
-			continue;
-		}
-		std::wofstream txtDebug(L"C:\\code\\dm\\QMDebug.txt",std::ios::app);
-		txtDebug << keyop.Key<<" "<<keyop.KeyTime<<" "<<keyop.KeyType << " " << std::endl;
-		txtDebug.close();
-		pqKeyOp.pop();
-		::LeaveCriticalSection(&g_csKeyOp);
 
-		switch (keyop.KeyType)
-		{
-		case 0:
-			dm.KeyPressChar(keyop.Key.c_str());
-			keyop.KeyCallback(0);
-			break;
-		case 1:
-			dm.KeyDownChar(keyop.Key.c_str());
-			keyop.KeyCallback(0);
-			break;
-		case 2:
-			dm.KeyUpChar(keyop.Key.c_str());
-			keyop.KeyCallback(0);
-			break;
-		default:
-			break;
-		}
+		::EnterCriticalSection(&cs_testNeuralThread);
+		g_insZone.run(dm);
+		::LeaveCriticalSection(&cs_testNeuralThread);
+		test::printBestAreaAndPlayer();
 	}
+	::CoUninitialize();
+	cout << "exit the neural thread successfully" << endl;
+	return 0;
+}
+
+int test::initialTest()
+{
+	::InitializeCriticalSection(&cs_testNeuralThread);
+	OpenConsole();
+	return 0;
+}
+
+int test::printBestAreaAndPlayer()
+{
+	static int  NeuralSize = 0;
+	static int lastPrintTime = 0;
+	::EnterCriticalSection(&cs_testNeuralThread);
+
+	if ( g_action.m_hisActNeural.size()>NeuralSize || ::GetTickCount() -  lastPrintTime > 2000)
+	{
+		auto attackArea = ((RedEye::ActShuangDao*) g_action.m_hisActNeural[g_action.m_hisActNeural.size() - 1].first)->m_bestArea;
+		cout<<"Num "<< g_action.m_hisActNeural.size()<<" :" << RectToString(attackArea.m_rect)<<" direction:"<<attackArea.direction << endl;
+		cout <<"player "<< RectToString(g_RoomState.m_Player.m_rect) << endl;
+		NeuralSize = g_action.m_hisActNeural.size();
+		lastPrintTime = GetTickCount();
+	}
+
+	::LeaveCriticalSection(&cs_testNeuralThread);
+	return 0;
+}
+
+int test::testGetPlayer(Cdmsoft dm)
+{
+	ima::getNewScreen(dm);
+	cout<<RectToString( CPlayer::getPlayer().m_rect);
 
 	return 0;
 }
 
 
-void test::testdm(Cdmsoft dm)
-{
-	if (dm == NULL)
-	{
-		MessageBox(NULL, L"getNULLdm", L"fdsf", 0);
-	}
-	else if (dm.GetPath().GetLength() == 0)
-	{
-		MessageBox(NULL, L"getNULLpath namespace test ", L"fdsf", 0);
-	}
-	else {
-		MessageBox(NULL, L"getsuccesspath", L"fdsf", 0);
-	}
-	return;
-}
-
-void test::findpic(Cdmsoft dm)
-{
-	VARIANT x, y;
-	dm.FindPic(0, 0, 400, 400, L"C:\\code\\dm\\computer.bmp", L"000000", 1.0, 0, &x, &y);
-
-	std::ofstream txtdebug("c:\\code\\dm\\dmdebug.txt", std::ios::app);
-	txtdebug << x.intVal << " " << y.intVal << std::endl;
-	txtdebug.close();
-	return;
-}
-
-void test::moveto(Cdmsoft dm)
-{
-}
-
-void test::keypress(Cdmsoft dm)
-{
-
-}
 
 
 
-
-void test::minidnf(Cdmsoft dm)
-{
-	::InitializeCriticalSection(&test::g_csKeyOp);
-	UINT uId;
-	HANDLE hKey = (HANDLE)::_beginthreadex(NULL, 0, test::KeyboardInput, NULL, 0, &uId);
-	srand((int)time(0));
-	MessageBox(NULL, L"C:\\code\\QMDebug.txt", L"LFD", 0);
-	while (true)
-	{
-		std::wstring k = (rand() % 2) == 0 ? L"LEFT" : L"RIGHT";
-		::EnterCriticalSection(&g_csKeyOp);
-		pqKeyOp.push(CKeyOp(k, GetTickCount() + 50,1));
-		pqKeyOp.push(CKeyOp(k, GetTickCount() + 400, 2));
-		::LeaveCriticalSection(&g_csKeyOp);
-		Sleep(1200);
-
-		std::wofstream txtDebug(L"C:\\code\\QMDebug.txt", std::ios::app);
-		test::findMonster(dm);
-		auto &mon = test::vecMonster;
-		txtDebug << "case : ";
-		for (auto iter = mon.begin(); iter != mon.end(); iter++)
-		{
-			txtDebug << (*iter).x << " " << (*iter).y << std::endl;
-		}
-		txtDebug.close();
-
-	}
-
-}
-
-long test::findMonster(Cdmsoft dm, int rangeX, int rangeY , int rangeWidth , int rangeHeight , WCHAR *MonColor, double similar , int PointCount , int monWidth , int monHeight )
-{
-	static DWORD pretime = GetTickCount();
-	CString cs = dm.FindColorBlockEx(rangeX, rangeY, rangeWidth, rangeHeight, MonColor, similar, PointCount, monWidth, monHeight);
-	long count = dm.GetResultCount(cs);
-	int prex = -100;
-	int prey = -100;
-	vecMonster.clear();
-	for (int i = 0; i < 1; i++)
-	{
-		VARIANT intX, intY;
-		int dm_ret = dm.GetResultPos(cs, i, &intX, &intY);
-		if (abs(intX.intVal - prex) < monWidth/3 && abs(intY.intVal - prey) < monHeight/3)
-		{
-			continue;
-		}
-		prex = intX.intVal;
-		prey = intY.intVal;
-		
-		vecMonster.push_back(CMonster(intX.intVal, intY.intVal));
-	}
-	return count;
-}

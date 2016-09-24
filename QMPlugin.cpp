@@ -283,13 +283,35 @@ BSTR CQMPlugin::Test1()
 	CString strResult = L"Hello, world!";
 	return strResult.AllocSysString();
 }
+
+UINT __stdcall testKeyboard(PVOID)
+{
+	::CoInitialize(NULL);//初始化线程COM库
+	Cdmsoft dm;
+	dm.CreateDispatch(L"dm.dmsoft");
+
+	DWORD curTime = ::GetTickCount();
+	while (::GetTickCount() - curTime <7 * 1000)
+	{
+		dm.KeyPressChar(L"left");
+			Sleep(10);
+	}
+
+	::CoUninitialize();
+	return 0;
+}
+
+
+
+
 #include"Room.h"
 #include"InstanceZones.h"
 //这是第二个插件函数，接受两个整数参数，返回两个整数的和
 long CQMPlugin::Test2(long iNumber1, long iNumber2) 
 {
-	Cdmsoft dm;
+	
 	::CoInitialize(NULL);
+	Cdmsoft dm;
 	CLSID clsid;
 	HRESULT hr = CLSIDFromProgID(OLESTR("dm.dmsoft"), &clsid);
 	dm.CreateDispatch(clsid);
@@ -297,17 +319,35 @@ long CQMPlugin::Test2(long iNumber1, long iNumber2)
 
 	::InitializeCriticalSection(&gandalfr::CKeyOp::g_csKeyOp);
 	g_insZone.loadNeural();
-	_beginthreadex(NULL, 0, gandalfr::CKeyOp::KeyboardInput, NULL, 0, NULL);
-	
-	DWORD curTime = ::GetTickCount();
-	while (::GetTickCount() - curTime <30*1000)
+	if(iNumber1 == 1)
+		_beginthreadex(NULL, 0, testKeyboard, NULL, 0, NULL);
+	else if (iNumber1 == 10)
 	{
-		g_insZone.run(dm);
+		_beginthreadex(NULL, 0, gandalfr::CKeyOp::KeyboardInput, NULL, 0, NULL);
+		test::OpenConsole();
 	}
 
+	
+	DWORD curTime = ::GetTickCount();
+	while (::GetTickCount() - curTime <10*1000)
+	{
+		if (iNumber1 == 10)
+		{
+			g_insZone.run(dm);
+			test::printBestAreaAndPlayer();
+			Sleep(100);
+		}
+		else if (iNumber1 == 1)
+		{
+			dm.KeyPressChar(L"left");
+			dm.GetScreenData(0, 0, 800, 600);
+			Sleep(50);
+		}
+	}
 
+	::CoUninitialize();
 	gandalfr::CKeyOp::m_RunTheKeyBoard = false;
-	Sleep(2000);
+	Sleep(1000);
 
 	//std::wofstream txtDebug(L"C:\\code\\QMDebug.txt",std::ios::app);
 	//test::findMonster(dm);
