@@ -49,4 +49,6 @@ namespace test
 	int printBestAreaAndPlayer();
 
 	int testGetPlayer(Cdmsoft dm);
+
+	int printPlayerXYAndTime(Cdmsoft dm);
 }

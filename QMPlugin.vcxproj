@@ -108,7 +108,9 @@
     <None Include="res\QMPlugin.rc2" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CharBaoPo.cpp" />
     <ClCompile Include="CharRedEye.cpp" />
+    <ClCompile Include="Decision.cpp" />
     <ClCompile Include="grade.cpp" />
     <ClCompile Include="image.cpp" />
     <ClCompile Include="InstanceZones.cpp" />
@@ -123,12 +125,15 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Cdmsoft.h" />
+    <ClInclude Include="CharBaoPo.h" />
     <ClInclude Include="CharRedEye.h" />
+    <ClInclude Include="Decision.h" />
     <ClInclude Include="grade.h" />
     <ClInclude Include="image.h" />
     <ClInclude Include="InstanceZones.h" />
     <ClInclude Include="Neural.h" />
     <ClInclude Include="QMPlugin.h" />
+    <ClInclude Include="QMPlugin_h.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Room.h" />
     <ClInclude Include="stdafx.h" />

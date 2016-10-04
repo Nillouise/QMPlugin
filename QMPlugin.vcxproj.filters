@@ -51,6 +51,12 @@
     <ClCompile Include="Neural.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="CharBaoPo.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Decision.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="QMPlugin.h">
@@ -87,6 +93,15 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Neural.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="CharBaoPo.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Decision.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="QMPlugin_h.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

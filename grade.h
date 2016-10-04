@@ -5,6 +5,9 @@ namespace ga //gor grade
 	extern double OneMonster; //add the score when a ActNeural can hit a mon
 	extern double NeednMove;//add the score when a ActNeural didn't need to move
 	extern double NeednChangeDirection;//add the score when a ActNeural didn't need to changeDirection
+	extern double AttackAllMonster;//if a skill can attack all monster in monsterNeural,add it
+
+	extern double MonNeuralOneMonster;//if this monneural have a monster, add it
 
 	extern double moveX;//monster estimate point mul with pixel 
 	extern double moveY;//
@@ -36,4 +39,6 @@ namespace ga //gor grade
 	extern ima::ColRGB imgPlayerShi[3][3];
 	extern ima::ColRGB ColWhite;
 	extern ima::ColRGB Col84ffff;
+
+	extern DWORD timeRunExcuteToAvoidConfilt;//when begin to run ,after two x key press ,after how much time to begin Y key;
 }

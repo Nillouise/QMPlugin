@@ -318,13 +318,15 @@ long CQMPlugin::Test2(long iNumber1, long iNumber2)
 	dm.Reg(L"dieofai3e4c4149f6970cd69b4fc3af7ac85de4", L"0001");
 
 	::InitializeCriticalSection(&gandalfr::CKeyOp::g_csKeyOp);
+	::InitializeCriticalSection(&test::cs_testNeuralThread);
 	g_insZone.loadNeural();
+	test::OpenConsole();
 	if(iNumber1 == 1)
 		_beginthreadex(NULL, 0, testKeyboard, NULL, 0, NULL);
 	else if (iNumber1 == 10)
 	{
 		_beginthreadex(NULL, 0, gandalfr::CKeyOp::KeyboardInput, NULL, 0, NULL);
-		test::OpenConsole();
+
 	}
 
 	
@@ -343,10 +345,17 @@ long CQMPlugin::Test2(long iNumber1, long iNumber2)
 			dm.GetScreenData(0, 0, 800, 600);
 			Sleep(50);
 		}
+		if (iNumber1 == 555)
+		{
+			test::printPlayerXYAndTime(dm);
+			Sleep(100);
+		}
+
 	}
 
 	::CoUninitialize();
 	gandalfr::CKeyOp::m_RunTheKeyBoard = false;
+	fclose(stdout);
 	Sleep(1000);
 
 	//std::wofstream txtDebug(L"C:\\code\\QMDebug.txt",std::ios::app);

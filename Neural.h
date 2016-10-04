@@ -5,6 +5,7 @@
 #include<vector>
 #include<map>
 #include<set>
+#include<functional>
 using namespace std;
 using namespace gandalfr;
 
@@ -35,23 +36,43 @@ public:
 
 };
 
-
+typedef  function<double(int)> fnNumToScore;
 class MonNeural:public Neural
 {
 public:
 	virtual MonNeural* getClassType() { return this; }
+	MonNeural() { m_necessary = 0.3; }
+
 	CMonsterSet m_Mon;//this MonNeural store which monsters should be considerate
-	
+	double m_necessary;//to avoid m_output bigger and bigger,   this neural 's monster set should important in while multiply?it will mul with any monset,so it should be 1/3 etc
+	fnNumToScore m_numToScore;
 };
 
 
-class MonNearAndAttacking :public MonNeural
+
+
+class MonNearPlayer :public MonNeural
 {
 public:
-	virtual MonNearAndAttacking* getClassType() { return this; }
+	virtual MonNearPlayer* getClassType() { return this; }
 	virtual void run();
 	virtual void cal();
+	MonNearPlayer(CRectangle NearAreaWidthAndHeight, double base , fnNumToScore numToScore ) :m_nearArea(NearAreaWidthAndHeight){ m_base = base; m_numToScore = numToScore; };
+	CRectangle m_nearArea;
+
 };
+
+class MonFixArea :public MonNeural
+{
+public:
+	virtual MonFixArea* getClassType() { return this; }
+	virtual void run();
+	virtual void cal();
+	MonFixArea(CRectangle fixArea, double base, fnNumToScore numToScore) :m_fixArea(fixArea) { m_base = base; m_numToScore = numToScore; };
+	CRectangle m_fixArea;
+
+};
+
 
 class MonAny :public MonNeural
 {
@@ -59,8 +80,18 @@ public:
 	virtual MonAny* getClassType() { return this; }
 	virtual void run();
 	virtual void cal();
-	MonAny(double base = 0.0) { m_base = base; };
+	MonAny(double base = 0.0):MonNeural() { m_base = base; };
 };
+
+class MonAttacking :public MonNeural
+{
+public:
+	virtual MonAttacking* getClassType() { return this; }
+	virtual void run();
+	virtual void cal();
+	MonAttacking(double base = 3.1) :MonNeural() { m_base = base; };
+};
+
 
 
 //it didn't have outpu
@@ -76,21 +107,84 @@ class ActNeural :public Neural
 {
 public:
 	virtual ActNeural* getClassType() { return this; }
-	DWORD m_lastReleaseSkills;// the time that last release Skill
-
-	MonNeural **m_MonToAttack;// point to a fix variant that point to dynamic MonNeural
+	virtual string getBaseType() { return "ActNeural"; }
 
 };
 
+class MonNoMoveAndInYaxilWithPlayer :public MonNeural
+{
+public:
+
+
+};
+
+//such as bati ,dutiao
+class MonIsAttacking :public MonNeural
+{
+public:
+
+};
+
+
+class MonNoMoveAndInPlayerBack :public MonNeural
+{
+public:
+
+};
+
+//if there is monster in the other side,this neural output will be larger
+class MonInObstacleSide :public MonNeural
+{
+public:
+
+};
+
+
+class MiddleLayerNeural :public ActNeural
+{
+public:
+
+};
+
+class ActWithArea :public ActNeural
+{
+public:
+	virtual ActWithArea* getClassType() { return this; }
+	virtual string getBaseType() { return "ActWithArea"; }
+	std::vector<CAttackArea> m_area;//possible attack area;
+	CAttackArea m_bestArea;
+	CSkill *m_skill;
+	MonNeural **m_MonToConsiderFirst;// point to a fix variant that point to dynamic MonNeural
+	std::vector<CTrail> m_vecTrail;//go to the m_bestArea's trail
+	DWORD m_lastReleaseSkills;// the time that last release Skill
+};
+//use other ActWithArea Neural's area,(it aim is to help ActWithArea Neural
+class AttachToActWithAreaNeural :public ActNeural
+{
+public:
+	ActWithArea *m_sourceNeural;
+};
+
+class RunOutofObstacle :public AttachToActWithAreaNeural
+{
+public:
+
+};
+
+
+
+
+
+typedef  function<double(DWORD begin, DWORD end, Neural *neural)> fnOuput;
 //it must have correspond Up Key if you use m_key,
 class ActTemp :public Neural
 {
 public:
 	virtual ActTemp* getClassType() { return this; }
-	ActTemp(ActNeural* creator = NULL, double(*fnOutput)(DWORD begin, DWORD end, Neural*neural) = NULL) :creator(creator), m_fnOutput(fnOutput) { m_beginTime = GetTickCount(); m_endTime = GetTickCount() + 250; m_output = 0; m_base = 0; };
+	ActTemp(ActNeural* creator = NULL, function<double(DWORD begin, DWORD end, Neural *neural)> fnOutput = NULL) :creator(creator), m_fnOutput(fnOutput) { m_beginTime = GetTickCount(); m_endTime = GetTickCount() + 250; m_output = 0; m_base = 0; };
 
-	static double fnOutMustRunComplete(DWORD beginTime, DWORD endTime, Neural* TempNeural);//tempNeural have creator
-
+	static fnOuput fnOutMustRunComplete();//tempNeural have creator
+	static fnOuput fnOutGiveUpControlInLastXmillisecond(DWORD x);
 	virtual void run();//ActTemp output only depend on m_fnOutput?didn't relative the other Neural?
 	virtual void express();
 	virtual void end();
@@ -103,7 +197,8 @@ public:
 	vector<CKeyOp>m_key;
 	int m_keySignal;//it only use in m_key
 
-	double(*m_fnOutput)(DWORD begin, DWORD end,Neural* neural);//the function poiter to cal the ActTemp output should be what in this time
+	fnOuput m_fnOutput;//the function poiter to cal the ActTemp output should be what in this time
+
 	ActNeural* creator;//who create it
 };
 
@@ -118,8 +213,8 @@ public:
 
 	void run();
 
-	static DWORD executeTrail(const vector<CTrail>& trail);
-	static DWORD playerRunX(int x, map<wstring, int> &runState, const CSpeed &speed, const DWORD &beginTime, int runOrWalk);
+	static DWORD executeTrail(const vector<CTrail>& trail, const CSpeed & speed, const map<wstring, int>& runState);
+	static DWORD playerRunX(int x, map<wstring, int> &runState, const CSpeed &speed, const DWORD &beginTime, int runOrWalk, DWORD &timeToYexcute);
 	static DWORD playerRunY(int y, map<wstring, int> &runState, const CSpeed &speed, const DWORD &beginTime);
 };
 

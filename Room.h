@@ -10,30 +10,31 @@
 #include<set>
 
 
-
 namespace gandalfr
 {
 	class CRoomState;
 	class CMonsterOne;
 	class CTrail;
 
-	
+	typedef  std::function<double(DWORD pressTime)> fnKeyPressCallBack;
+	extern fnKeyPressCallBack KeyDefaultCallback;
 	class CKeyOp
 	{
 	public:
-		enum keyMode { PRESS,DOWMAGAIN,DOWMNOAGAIN,UP};//DOWMAGAIN is if this key down,then up and down again,DOWNNOAGAIN,it only responce to down state,no again
+		enum keyMode { PRESS, DOWMAGAIN, DOWMNOAGAIN, UP };//DOWMAGAIN is if this key down,then up and down again,DOWNNOAGAIN,it only responce to down state,no again
 
 		std::wstring m_Key;
 		DWORD m_KeyTime;
-		int(*m_KeyCallback)(DWORD x);//when a key press ,it call back£¬the process while pass the process time
+//		int(*m_KeyCallback)(DWORD x);//when a key press ,it call back£¬the process while pass the process time
+		fnKeyPressCallBack m_KeyCallback;
 		keyMode m_KeyType;// this key is press or down or up
 		int m_signal;//1 if for run to some area,2 to release skill,you can you other num to approach other effect
-		
+	//	DWORD testss;
+
 		static DWORD m_nowTime;
 		static bool m_RunTheKeyBoard;//if it is false,the keyboard thread will exit
 
 
-		static int KeyDefaultCallback(DWORD process_time);// 
 
 		static std::vector<CKeyOp> m_hisCKeyOp; // record the history key
 		static std::set<CKeyOp > m_setKeyOp;  // incoming key
@@ -41,14 +42,15 @@ namespace gandalfr
 		static std::map<std::wstring, DWORD> m_keyRecentProcess;//the key press in the recent time.if is downing,it also is the dowing time
 		static std::map<std::wstring, int> m_keyStateSignal;//the key is 0 if not down,else int represent the ActTemp's keySignal;
 
-		static int fillVecUpRunKeyCurrentTime(std::vector<CKeyOp> &vec,DWORD timeToUpKey);//use in actTemp to up the run key.
-	//	static int upRunKey(DWORD upTime);// up the left,right,up,down key,if they are downing
-		static int UpSlefKeyAnddelKeyNoExe(int signalId);//it no use yet
-		static int upKeyNoUp(int signalId);// it no clear the m_setKeyOp first
+		static int fillVecUpRunKeyCurrentTime(std::vector<CKeyOp> &vec, DWORD timeToUpKey);//use in actTemp to up the run key.
+																						   //		static int upRunKey(DWORD upTime);// up the left,right,up,down key,if they are downing
+		static int UpSlefKeyAndDelKeyNoExe(int signalId);//it no use yet
+		static int upKeyNoUpThenClearKeySet(int signalId);// it no clear the m_setKeyOp first
+		static int eraseRunKey();//erase all incoming run key
 
 		static void processKey(Cdmsoft dm, const std::wstring &key, const keyMode &mode, const int &signal);//process this key op include set keyStateDown and m_keyStateSignal;
 
-		CKeyOp(std::wstring Key = L"", DWORD KeyTime = 0, keyMode KeyType = CKeyOp::PRESS, int(*KeyCallback)(DWORD) = KeyDefaultCallback,int signal = 1) :m_Key(Key), m_KeyTime(KeyTime), m_KeyCallback(KeyCallback), m_KeyType(KeyType), m_signal(signal) {}
+		CKeyOp(std::wstring Key = L"", DWORD KeyTime = 0, keyMode KeyType = CKeyOp::PRESS, fnKeyPressCallBack keyCallBack = KeyDefaultCallback, int signal = 1) :m_Key(Key), m_KeyTime(KeyTime), m_KeyCallback(keyCallBack), m_KeyType(KeyType), m_signal(signal) {}
 		static UINT __stdcall KeyboardInput(PVOID);//use to begin a new thread
 	};
 	bool operator < (const CKeyOp &t1, const CKeyOp &t2);
@@ -67,7 +69,9 @@ namespace gandalfr
 		CRectangle(int x = -1, int y = -1, int width = 0, int height = 0) :x(x), y(y), width(width), height(height) {};
 		static int RectCollide(const CRectangle &A, const CRectangle &B, CRectangle* R = NULL);//1 to collide,R is the collided Rectangle
 		static int getRectTrail(const CRectangle &player, const CRectangle &rect, CTrail &receive);//player go to the center of rect 's trail
-
+		bool compare(const CRectangle& r2) {
+			return r2.x == x && r2.y == y&&r2.width == width&&r2.height == height;
+		}
 	};
 	bool operator < (const CRectangle &t1, const CRectangle &t2);
 
@@ -79,7 +83,7 @@ namespace gandalfr
 		int m_spRunY;
 		int m_spWalkX;
 		int m_spWalkY;
-		CSpeed(int RunX = 953, int RunY = 110, int WalkX = 300, int WalkY = 110) :m_spRunX(RunX), m_spRunY(RunY), m_spWalkX(WalkX), m_spWalkY(WalkY) {};
+		CSpeed(int RunX = 275, int RunY = 110, int WalkX = 137, int WalkY = 110) :m_spRunX(RunX), m_spRunY(RunY), m_spWalkX(WalkX), m_spWalkY(WalkY) {};
 	};
 
 
@@ -93,7 +97,7 @@ namespace gandalfr
 		DWORD endTime;//no use
 		CSpeed speed;//no use
 		std::vector<CKeyOp> via; //no use, maybe you can use skill to move yourself.
-		CTrail(int x = 0, int y = 0, DWORD beginTime = 0, DWORD endTime = 0,CRectangle beginArea= CRectangle()) :x(x), y(y), beginTime(beginTime), endTime(endTime),beginArea(beginArea) {};
+		CTrail(int x = 0, int y = 0, DWORD beginTime = 0, DWORD endTime = 0, CRectangle beginArea = CRectangle()) :x(x), y(y), beginTime(beginTime), endTime(endTime), beginArea(beginArea) {};
 
 	};
 
@@ -105,8 +109,9 @@ namespace gandalfr
 		double direction; //-1.0 represent to left,1.0 represent to right, 0 to both
 		std::vector<CMonsterOne> vec_Mons; //no use, how number could attack
 		int num;
+		double score;
 		CAttackArea(CRectangle rect, double direction, int num) :m_rect(rect), direction(direction), num(num) {}
-		CAttackArea() {}
+		CAttackArea() { num = 0; score = 0; }
 	};
 
 
@@ -122,7 +127,7 @@ namespace gandalfr
 		int m_type;  //represent if it is a boss monster or something 
 		CMonsterOne(CRectangle rect, int hitTime = 0) :m_rect(rect), m_hitTime(hitTime) {};
 	};
-	
+
 
 	class CMonsterSet
 	{
@@ -139,7 +144,7 @@ namespace gandalfr
 		CRectangle m_rect;
 		std::wstring m_name;
 		int m_type;// it is white or purple or pink?
-		CGoldOne(CRectangle m_rect,std::wstring m_name = L"",int m_type = 0) :m_rect(m_rect),m_name(m_name), m_type(m_type) {};
+		CGoldOne(CRectangle m_rect, std::wstring m_name = L"", int m_type = 0) :m_rect(m_rect), m_name(m_name), m_type(m_type) {};
 	};
 
 
@@ -161,7 +166,7 @@ namespace gandalfr
 		int m_state;//in fuhuo or bati
 		int m_HP;
 		int m_MP;
-		CSpeed m_speed;//default speed:int RunX = 953, int RunY = 110, int WalkX = 300, int WalkY = 110
+		CSpeed m_speed;//default speed:int RunX = 270, int RunY = 110, int WalkX = 110, int WalkY = 110
 
 		CPlayer() { m_rect = CRectangle(0, 0, 30, 20); }
 		static CPlayer getPlayer();
@@ -171,7 +176,7 @@ namespace gandalfr
 	{
 	public:
 		CRectangle m_rect;
-		CObstacleOne(CRectangle rect):m_rect(rect){}
+		CObstacleOne(CRectangle rect) :m_rect(rect) {}
 	};
 
 	class CObstacleSet
@@ -206,19 +211,31 @@ namespace gandalfr
 	{
 	public:
 
-		static int getMonsterOverlay(const CRectangle &rectSkill, std::vector<std::vector<CRectangle>> &receive, const CMonsterSet &monset );
+		static int getMonsterOverlay(const CRectangle &rectSkill, std::vector<std::vector<CRectangle>> &receive, const CMonsterSet &monset);
 	};
 
 
+	class CSkillAttackEffect
+	{
+	public:
+		CMonsterSet monsters;
+		DWORD attackTime;
+		CRectangle attackRect;
+	};
 
+	
 
 	class CSkill
 	{
 	public:
 		DWORD m_NextTime;
+		DWORD m_lastTime;
 		DWORD m_cooldown;
+		CRectangle m_area;
+		bool canUse();
+		DWORD m_HitrecoverTime;
 		std::vector<CKeyOp> m_Key;
-
+		int release(DWORD curTime);
 
 	};
 
@@ -238,6 +255,7 @@ namespace gandalfr
 		std::vector<CPlayer> m_vecPlayerTrail;
 		std::vector<CObstacleSet> m_vecObstacleTrail;
 		std::vector<CSceneBoxSet> m_vecSceneBoxTrail;
+		std::vector<CSkillAttackEffect> m_AttackEffect;
 
 		CMonsterSet m_Monster;
 		CGoldSet m_Gold;
@@ -257,7 +275,7 @@ namespace gandalfr
 	private:
 
 	};
-	
+
 	//return 1 if coDirection,return 0 if not;
 	double isCoDirection(double player, double area);
 

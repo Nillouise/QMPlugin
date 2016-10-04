@@ -8,6 +8,7 @@
 #include<set>
 #include"image.h"
 #include"grade.h"
+#include"Decision.h"
 using namespace gandalfr;
 using namespace std;
 CRoomState g_RoomState;
@@ -18,7 +19,7 @@ std::map<std::wstring, int>  CKeyOp::m_keyStateSignal;//the key is 0 if not down
 CRITICAL_SECTION CKeyOp::g_csKeyOp;
 bool CKeyOp::m_RunTheKeyBoard;
 DWORD CKeyOp::m_nowTime;
-
+fnKeyPressCallBack gandalfr::KeyDefaultCallback = [](DWORD) {return 0.0; };
 
 
 
@@ -120,10 +121,7 @@ bool gandalfr::operator <(const CRectangle & t1, const CRectangle & t2)
 
 
 
-int gandalfr::CKeyOp::KeyDefaultCallback(DWORD x)
-{
-	return 0;
-}
+
 
 
 
@@ -137,7 +135,7 @@ int gandalfr::CKeyOp::fillVecUpRunKeyCurrentTime(std::vector<CKeyOp>& vec, const
 	return 0;
 }
 
-int gandalfr::CKeyOp::UpSlefKeyAnddelKeyNoExe(int signalId)
+int gandalfr::CKeyOp::UpSlefKeyAndDelKeyNoExe(int signalId)
 {
 	::EnterCriticalSection(&CKeyOp::g_csKeyOp);
 	for (auto it = CKeyOp::m_setKeyOp.begin(); it != CKeyOp::m_setKeyOp.end(); )
@@ -154,16 +152,39 @@ int gandalfr::CKeyOp::UpSlefKeyAnddelKeyNoExe(int signalId)
 	return 0;
 }
 
-int gandalfr::CKeyOp::upKeyNoUp(int signalId)
+int gandalfr::CKeyOp::upKeyNoUpThenClearKeySet(int signalId)
 {
+	vector<CKeyOp> upKey;
 	::EnterCriticalSection(&CKeyOp::g_csKeyOp);
 	for (auto it = CKeyOp::m_keyStateSignal.begin(); it != CKeyOp::m_keyStateSignal.end(); it++)
 	{
 		if (it->second == signalId)
 		{
-			m_setKeyOp.insert(CKeyOp(it->first,0,CKeyOp::UP));
+			upKey.push_back(CKeyOp(it->first,0,CKeyOp::UP));
 		}
 	}
+	m_setKeyOp.clear();
+
+
+	::LeaveCriticalSection(&CKeyOp::g_csKeyOp);
+	return 0;
+}
+
+int gandalfr::CKeyOp::eraseRunKey()
+{
+	::EnterCriticalSection(&CKeyOp::g_csKeyOp);
+
+	for (auto iter = m_setKeyOp.begin(); iter != m_setKeyOp.end(); )
+	{
+		if (iter->m_signal == 1)
+		{
+			iter = m_setKeyOp.erase(iter);
+		}
+		else {
+			iter++;
+		}
+	}
+
 	::LeaveCriticalSection(&CKeyOp::g_csKeyOp);
 	return 0;
 }
@@ -221,14 +242,6 @@ UINT gandalfr::CKeyOp::KeyboardInput(PVOID)
 						if (m_keyStateSignal[iter->m_Key] > 0)//if it is downing,0 is not downing
 						{
 							processKey(dm, iter->m_Key, UP, iter->m_signal);
-							CKeyOp nextKey(*iter);
-							auto iter2 = iter;
-							iter2++;
-							if (iter2 != m_setKeyOp.end())
-							{
-								nextKey.m_KeyTime = iter2->m_KeyTime - 1;
-							}
-							generateKey.push_back(nextKey);
 							iter++;
 							continue;
 						}
@@ -260,7 +273,7 @@ UINT gandalfr::CKeyOp::KeyboardInput(PVOID)
 							}
 							nextKey.m_KeyType = DOWMNOAGAIN;
 							generateKey.push_back(nextKey);
-							iter++;
+							iter = m_setKeyOp.erase(iter);
 						}
 						else {
 							processKey(dm, iter->m_Key, DOWMNOAGAIN, iter->m_signal);
@@ -354,11 +367,15 @@ void gandalfr::CRoomState::run(Cdmsoft dm)
 {
 	ima::getNewScreen(dm);
 	getAllRectStateInRoom(dm);
+	m_vecPlayerTrail.push_back(m_Player);
 	m_Player.m_rect = CPlayer::getPlayer().m_rect ;
+
 
 	::EnterCriticalSection(&CKeyOp::g_csKeyOp);
 	setRunStateCorrectly();
 	m_Player.m_direction =  getPlayerDirectionUseKeyOp();
+
+
 	::LeaveCriticalSection(&CKeyOp::g_csKeyOp);
 }
 
@@ -427,24 +444,24 @@ int gandalfr::CRoomState::getAllRectStateInRoom(Cdmsoft dm)
 	return count;
 }
 
-DWORD getKeyRunState(const wstring &key,int begin, DWORD &time, int &Up)
+DWORD getKeyRunState(const wstring &key,int &begin, DWORD &time, int &Up)
 {
 	auto &hisKey = CKeyOp::m_hisCKeyOp;
 	time = 0;
 	Up = 1;
 	int preDownTime = 0;
-	for (int i = begin; i < hisKey.size(); i++)
+	for (int i = begin; i < (long long) hisKey.size(); i++)
 	{
 		if (i == -1)
 		{
 			continue;
 		}
-		if (hisKey[i].m_Key == L"left")
+		if (hisKey[i].m_Key == key)
 		{
 			if (hisKey[i].m_KeyType == CKeyOp::DOWMNOAGAIN)
 			{
-				begin = i;
 				preDownTime = time;
+				begin = i;
 				time = hisKey[i].m_KeyTime;
 				Up = 0;
 			}
@@ -454,6 +471,26 @@ DWORD getKeyRunState(const wstring &key,int begin, DWORD &time, int &Up)
 			}
 		}
 	}
+
+	if (preDownTime == 0)
+	{
+		for (int i = begin - 1; i >= 0; i--)
+		{
+			if (hisKey[i].m_Key == key)
+			{
+				if (hisKey[i].m_KeyType == CKeyOp::DOWMNOAGAIN)
+				{
+					preDownTime = hisKey[i].m_KeyTime;
+					break;
+				}
+			}
+
+			if (hisKey[begin].m_KeyTime - hisKey[i].m_KeyTime > 3000)
+				break;
+			
+		}
+	}
+
 	return preDownTime;
 }
 
@@ -504,7 +541,6 @@ int gandalfr::CRoomState::setRunStateCorrectly()
 		state[L"up"] = 1;
 	else if ((downTime > upTime &&downUp == 0)||(downUp==0&&upUp==1))
 		state[L"down"] = 1;
-
 
 
 	return 0;
@@ -611,18 +647,29 @@ void gandalfr::CKeyOp::processKey(Cdmsoft dm, const std::wstring & key, const ke
 {
 	if (mode == DOWMNOAGAIN)
 	{
+#ifndef FORBITKEYBOARD
 		dm.KeyDownChar(key.c_str());
+#endif 
 		m_hisCKeyOp.push_back(CKeyOp(key, m_nowTime, DOWMNOAGAIN));
 		m_keyStateSignal[key] = signal;
 		m_keyRecentProcess[key] = m_nowTime;
+#ifdef PRINTKEY
+		wcout << key << L" " << (m_nowTime / 10) / 100.0 << L" " << L"down\t";
+#endif // _DEBUG
+
 		return;
 	}
 	if (mode == UP)
 	{
+#ifndef FORBITKEYBOARD
 		dm.KeyUpChar(key.c_str());
+#endif 
 		m_hisCKeyOp.push_back(CKeyOp(key, m_nowTime, UP));
 		m_keyStateSignal[key] = 0;
 		m_keyRecentProcess[key] = m_nowTime;
+#ifdef PRINTKEY
+		wcout << key << L" "  << (m_nowTime / 10) / 100.0 << L" " << L"up  \t";
+#endif // _DEBUG
 		return;
 	}
 
@@ -634,16 +681,16 @@ CPlayer gandalfr::CPlayer::getPlayer()
 	auto &pbyte = ima::curScreen::g_pbCurScreen;
 	auto &rect = ima::curScreen::g_rect;
 	map<void*, int> signalToOffsetY;
-	signalToOffsetY[ga::imgPlayerH] = 112;
-	signalToOffsetY[ga::imgPlayerKou] = 85;
-	signalToOffsetY[ga::imgPlayerKou] = 58;
+	signalToOffsetY[ga::imgPlayerH] = 112 + 20;
+	signalToOffsetY[ga::imgPlayerKou] = 85 + 20;
+	signalToOffsetY[ga::imgPlayerKou] = 58 + 20;
 
 	CRectangle searchArea(0, 0, 4, 600);
 
-	for (size_t y = 0; y < rect.height; y++)
+	for (int y = 0;  y < rect.height; y++)
 	{
 		int ok = 0;
-		for (size_t x = 0; x <rect.width; x++)
+		for (int x = 0; x <rect.width; x++)
 		{
 			if (ima::compareTwoColor(ga::Col84ffff.col,ima::getColorWhole(x,y)) == true)
 			{
@@ -674,3 +721,22 @@ CPlayer gandalfr::CPlayer::getPlayer()
 	return player;
 
 }
+
+bool gandalfr::CSkill::canUse()
+{
+	return ::GetTickCount() > m_NextTime;
+}
+
+int gandalfr::CSkill::release(DWORD curTime)
+{
+	m_lastTime = curTime;
+	m_NextTime = curTime + m_cooldown;
+	CSkillAttackEffect attackEffect;
+	attackEffect.monsters = g_RoomState.m_Monster;
+	attackEffect.attackTime = curTime;
+	attackEffect.attackRect = de::generateAttackEffect(g_RoomState.m_Player, this->m_area);
+	g_RoomState.m_AttackEffect.push_back(attackEffect);
+	return 0;
+}
+
+

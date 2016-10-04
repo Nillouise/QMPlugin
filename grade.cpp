@@ -8,6 +8,8 @@ namespace ga
 
 	 double moveX = 0.02;// mul with pixel 
 	 double moveY = 0.03;
+	 double AttackAllMonster = 2;
+	 double MonNeuralOneMonster = 1;
 
 	 DWORD timeActTempToStart = 330;
 
@@ -19,13 +21,13 @@ namespace ga
 	int discardWidth = 3;
 	int discardHeight = 3;
 
-	double imgDigestibility = 0.7;
-	double imgDppetite = 0.7;
+	double imgDigestibility = 0.8;
+	double imgDppetite = 0.4;
 
 	int stepX = 10;
 	int stepY = 10;
 
-	DWORD key_ProInterval = 200;
+	DWORD key_ProInterval = 60;
 
 	double coefficient_monNeural = 10;
 
@@ -49,5 +51,5 @@ namespace ga
 		{ Col84ffff,Col84ffff ,Col84ffff },
 		{ ColWhite ,Col84ffff ,ColWhite }
 	};
-
+	DWORD timeRunExcuteToAvoidConfilt = 180;
 }

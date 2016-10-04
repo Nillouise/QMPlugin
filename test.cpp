@@ -13,7 +13,7 @@ CRITICAL_SECTION test::cs_testNeuralThread;
 int test::OpenConsole()
 {
 //	AllocConsole();
-	freopen("C:\\test\test.txt", "w", stdout);
+	freopen("C:\\test\\test.txt", "w", stdout);
 	std::cout << "i'm cout" << std::endl;
 	return 0;
 }
@@ -226,7 +226,7 @@ int test::printBestAreaAndPlayer()
 
 	if ( g_action.m_hisActNeural.size()>NeuralSize || ::GetTickCount() -  lastPrintTime > 2000)
 	{
-		auto attackArea = ((RedEye::ActShuangDao*) g_action.m_hisActNeural[g_action.m_hisActNeural.size() - 1].first)->m_bestArea;
+		auto attackArea = ((RedEye::ActZhiChong*) g_action.m_hisActNeural[g_action.m_hisActNeural.size() - 1].first)->m_bestArea;
 		cout<<"Num "<< g_action.m_hisActNeural.size()<<" :" << RectToString(attackArea.m_rect)<<" direction:"<<attackArea.direction << endl;
 		cout <<"player "<< RectToString(g_RoomState.m_Player.m_rect) << endl;
 		NeuralSize = g_action.m_hisActNeural.size();
@@ -242,6 +242,13 @@ int test::testGetPlayer(Cdmsoft dm)
 	ima::getNewScreen(dm);
 	cout<<RectToString( CPlayer::getPlayer().m_rect);
 
+	return 0;
+}
+
+int test::printPlayerXYAndTime(Cdmsoft dm)
+{
+	ima::getNewScreen(dm);
+	cout << RectToString(CPlayer::getPlayer().m_rect) << "¡¡" << ::GetTickCount() << endl;
 	return 0;
 }
 

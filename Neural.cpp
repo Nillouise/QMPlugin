@@ -108,6 +108,8 @@ void CAction::run()
 			}
 			g_AnyToActTemp[(void*)this].clear();
 			m_hisActNeural.push_back( make_pair((ActNeural*)newAct, GetTickCount()));
+			m_curActNeural = NULL;
+
 		}
 		newAct->express();
 	}
@@ -116,13 +118,9 @@ void CAction::run()
 }
 
 //take a trail ,immediatly run ,and return the end time
-DWORD CAction::executeTrail(const vector<CTrail>& trail)
+DWORD CAction::executeTrail(const vector<CTrail>& trail,const CSpeed &speed,const map<wstring,int> &runState)
 {
-
-	//it is right,beacuse the actTemp key no in trail state,it will manage it's own self key
-	::EnterCriticalSection(&CKeyOp::g_csKeyOp);
-	CKeyOp::m_setKeyOp.clear();
-	::LeaveCriticalSection(&CKeyOp::g_csKeyOp);
+	CKeyOp::eraseRunKey();
 
 	int runOrWalk = 0;
 
@@ -140,15 +138,21 @@ DWORD CAction::executeTrail(const vector<CTrail>& trail)
 		}
 	}
 
-	map<wstring, int> runState(g_RoomState.m_runState);
+	map<wstring, int> cpy_runState(runState);
 
-	DWORD nowTime = GetTickCount();
+	DWORD nowTime = GetTickCount()+2000;
+
 	for (auto it = trail.begin(); it != trail.end(); it++)
 	{
-		DWORD curTimeX = playerRunX((*it).x, runState, g_RoomState.m_Player.m_speed, nowTime, runOrWalk);
-		DWORD curTimeY = playerRunY((*it).y, runState, g_RoomState.m_Player.m_speed, nowTime);
+		DWORD yBeginTime = nowTime;
+		DWORD curTimeX = playerRunX((*it).x, cpy_runState, speed, nowTime, runOrWalk, yBeginTime);
+//		DWORD curTimeY = 0;
+		DWORD curTimeY = playerRunY((*it).y, cpy_runState, speed, yBeginTime);
+		curTimeY += yBeginTime - nowTime;
 		nowTime += max(curTimeX, curTimeY);
 	}
+
+
 
 	return nowTime;
 
@@ -387,22 +391,23 @@ DWORD CAction::executeTrail(const vector<CTrail>& trail)
 
 
 //runOrWalk 1 to must be Run
-DWORD CAction::playerRunX(int x, map<wstring,int> &runState,const CSpeed &speed,const DWORD &beginTime,int runOrWalk )
+//timeToYexcute is to avoid between two x key ,a y key event appear
+DWORD CAction::playerRunX(int x, map<wstring,int> &runState,const CSpeed &speed,const DWORD &beginTime,int runOrWalk ,DWORD &timeToYexcute)
 {
 	wstring CurDirection=L"";
 	wstring NextDirection = L"";
+	timeToYexcute = beginTime;
 
-
-	DWORD firstPress = 37;
-	DWORD firstUp = 46;
-	DWORD firstDown = 33;
-	DWORD secondDown = 300;
-	DWORD secondUp = 33;
+	DWORD firstPress = 0;
+	DWORD firstUp = 0;
+	DWORD firstDown = 0;
+	DWORD secondDown = 0;
+	DWORD secondUp = 0;
 
 
 	const int runForever = 800;
 	const int walk = 250;
-	const int noMove = 0;
+	const int noMove = 30;
 
 	if (x < 0)
 	{
@@ -429,6 +434,7 @@ DWORD CAction::playerRunX(int x, map<wstring,int> &runState,const CSpeed &speed,
 			::EnterCriticalSection(&CKeyOp::g_csKeyOp);
 			CKeyOp::m_setKeyOp.insert(CKeyOp(NextDirection, beginTime + firstPress, CKeyOp::PRESS));
 			CKeyOp::m_setKeyOp.insert(CKeyOp(NextDirection, beginTime + secondDown, CKeyOp::DOWMNOAGAIN));
+			timeToYexcute = beginTime + secondDown + ga::timeRunExcuteToAvoidConfilt;
 			::LeaveCriticalSection(&CKeyOp::g_csKeyOp);
 			runState[NextDirection] = 2;
 			return 7 * 1000;
@@ -440,6 +446,7 @@ DWORD CAction::playerRunX(int x, map<wstring,int> &runState,const CSpeed &speed,
 			CKeyOp::m_setKeyOp.insert(CKeyOp(NextDirection, beginTime + firstPress, CKeyOp::PRESS));
 			CKeyOp::m_setKeyOp.insert(CKeyOp(NextDirection, beginTime + secondDown, CKeyOp::DOWMNOAGAIN));
 			CKeyOp::m_setKeyOp.insert(CKeyOp(NextDirection, beginTime + curTime + secondUp, CKeyOp::UP));
+			timeToYexcute = beginTime + secondDown + ga::timeRunExcuteToAvoidConfilt;
 			::LeaveCriticalSection(&CKeyOp::g_csKeyOp);
 			runState[NextDirection] = 2;
 			return curTime;
@@ -463,9 +470,7 @@ DWORD CAction::playerRunX(int x, map<wstring,int> &runState,const CSpeed &speed,
 		}
 
 	}
-
-
-	if (CurDirection == NextDirection)
+	else if (CurDirection == NextDirection)
 	{
 		if (runState[CurDirection] == 2 && abs(x)>runForever)
 		{
@@ -487,6 +492,7 @@ DWORD CAction::playerRunX(int x, map<wstring,int> &runState,const CSpeed &speed,
 			CKeyOp::m_setKeyOp.insert(CKeyOp(NextDirection, beginTime + firstPress, CKeyOp::PRESS));
 			CKeyOp::m_setKeyOp.insert(CKeyOp(NextDirection, beginTime + secondDown, CKeyOp::DOWMNOAGAIN));
 			CKeyOp::m_setKeyOp.insert(CKeyOp(NextDirection, beginTime + curTime+ secondUp, CKeyOp::UP));
+			timeToYexcute = beginTime + secondDown + ga::timeRunExcuteToAvoidConfilt;
 			::LeaveCriticalSection(&CKeyOp::g_csKeyOp);
 			runState[NextDirection] = 2;
 			return curTime;
@@ -500,8 +506,7 @@ DWORD CAction::playerRunX(int x, map<wstring,int> &runState,const CSpeed &speed,
 			return curTime;
 		}
 	}
-
-	if (CurDirection != NextDirection)
+	else if (CurDirection != NextDirection)
 	{
 		if (abs(x)>runForever)
 		{
@@ -509,6 +514,7 @@ DWORD CAction::playerRunX(int x, map<wstring,int> &runState,const CSpeed &speed,
 			CKeyOp::m_setKeyOp.insert(CKeyOp(CurDirection, beginTime, CKeyOp::UP));
 			CKeyOp::m_setKeyOp.insert(CKeyOp(NextDirection, beginTime + firstPress, CKeyOp::PRESS));
 			CKeyOp::m_setKeyOp.insert(CKeyOp(NextDirection, beginTime + secondDown, CKeyOp::DOWMNOAGAIN));
+			timeToYexcute = beginTime + secondDown + ga::timeRunExcuteToAvoidConfilt;
 			::LeaveCriticalSection(&CKeyOp::g_csKeyOp);
 			runState[NextDirection] = 2;
 			return 7 * 1000;
@@ -522,6 +528,7 @@ DWORD CAction::playerRunX(int x, map<wstring,int> &runState,const CSpeed &speed,
 			CKeyOp::m_setKeyOp.insert(CKeyOp(NextDirection, beginTime + firstPress, CKeyOp::PRESS));
 			CKeyOp::m_setKeyOp.insert(CKeyOp(NextDirection, beginTime + secondDown, CKeyOp::DOWMNOAGAIN));
 			CKeyOp::m_setKeyOp.insert(CKeyOp(NextDirection, beginTime + curTime + secondUp, CKeyOp::UP));
+			timeToYexcute = beginTime + secondDown + ga::timeRunExcuteToAvoidConfilt;
 			::LeaveCriticalSection(&CKeyOp::g_csKeyOp);
 			runState[NextDirection] = 2;
 			return curTime;
@@ -549,14 +556,14 @@ DWORD CAction::playerRunY(int y, map<wstring, int> &runState, const CSpeed &spee
 	wstring nextDirection = L"";
 
 	const int runForever = 600;
-	const int noMove = 0;
+	const int noMove = 30;
 
 
-	DWORD firstPress = 37;
-	DWORD firstUp = 46;
-	DWORD firstDown = 33;
-	DWORD secondDown = 300;
-	DWORD secondUp = 33;
+	DWORD firstPress = 0;
+	DWORD firstUp = 0;
+	DWORD firstDown = 0;
+	DWORD secondDown = 0;
+	DWORD secondUp = 0;
 
 
 	if (y < 0)
@@ -597,9 +604,7 @@ DWORD CAction::playerRunY(int y, map<wstring, int> &runState, const CSpeed &spee
 			runState[nextDirection] = 2;
 			return curTime;
 		}
-	}
-
-	if (curDirection == nextDirection)
+	}else if (curDirection == nextDirection)
 	{
 		if (abs(y) > runForever)
 		{
@@ -617,8 +622,7 @@ DWORD CAction::playerRunY(int y, map<wstring, int> &runState, const CSpeed &spee
 		}
 
 	}
-
-	if (curDirection != nextDirection)
+	else if (curDirection != nextDirection)
 	{
 		::EnterCriticalSection(&CKeyOp::g_csKeyOp);
 		CKeyOp::m_setKeyOp.insert(CKeyOp(curDirection, beginTime , CKeyOp::UP));
@@ -649,16 +653,36 @@ DWORD CAction::playerRunY(int y, map<wstring, int> &runState, const CSpeed &spee
 }
 
 
-double ActTemp::fnOutMustRunComplete(DWORD beginTime, DWORD endTime, Neural * neural)
+function<double(DWORD begin, DWORD end, Neural *neural)> ActTemp::fnOutMustRunComplete()
 {
-	DWORD nowtime = GetTickCount();
-	double r=0;
-	if (nowtime > beginTime && nowtime < endTime)
+	auto p = [](DWORD beginTime ,DWORD endTime, Neural *neural)
 	{
-		r = 1000;
-	}
-	return r;
+		double r = 0;
+		DWORD nowtime = GetTickCount();
+		if (nowtime > beginTime && nowtime < endTime)
+		{
+			r = 1000;
+		}
+		return  r;
+	};
+	return p;
 }
+
+function<double(DWORD begin, DWORD end, Neural*neural)> ActTemp::fnOutGiveUpControlInLastXmillisecond(DWORD x)
+{
+	auto p = [=](DWORD beginTime, DWORD endTime, Neural *neural)
+	{
+		double r = 0;
+		DWORD nowtime = GetTickCount();
+		if (nowtime > beginTime && nowtime < endTime-x)
+		{
+			r = 1000;
+		}
+		return  r;
+	};
+	return p;
+}
+
 
 void ActTemp::run()
 {
@@ -674,30 +698,29 @@ void ActTemp::run()
 
 void ActTemp::express()
 {
-	if (m_trail.empty() == true)
+	//generate it's only keySignal
+	int signal = 3;//0 can not be use ,1 is run state,2 is release skill the least number 
+	for (;; signal++)
 	{
-		//generate it's only keySignal
-		int signal = 3;//0 can not be use ,1 is run state,2 is release skill the least number 
-		for (;; signal++)
+		int ok = 1;
+		::EnterCriticalSection(&CKeyOp::g_csKeyOp);
+		for (auto iter = CKeyOp::m_setKeyOp.begin(); iter != CKeyOp::m_setKeyOp.end(); iter++)
 		{
-			int ok = 1;
-			::EnterCriticalSection(&CKeyOp::g_csKeyOp);
-			for (auto iter = CKeyOp::m_setKeyOp.begin(); iter != CKeyOp::m_setKeyOp.end(); iter++)
+			if (iter->m_signal == signal)
 			{
-				if (iter->m_signal == signal)
-				{
-					ok = 0;
-					break;
-				}
-			}
-			::LeaveCriticalSection(&CKeyOp::g_csKeyOp);
-			if (ok == 1)
-			{
-				m_keySignal = signal;
+				ok = 0;
 				break;
 			}
 		}
-		
+		::LeaveCriticalSection(&CKeyOp::g_csKeyOp);
+		if (ok == 1)
+		{
+			m_keySignal = signal;
+			break;
+		}
+	}
+	if (m_trail.empty() == true)
+	{
 		::EnterCriticalSection(&CKeyOp::g_csKeyOp);
 		for (auto it = m_key.begin(); it != m_key.end(); it++)
 		{
@@ -708,7 +731,7 @@ void ActTemp::express()
 		
 	}
 	else {
-		m_endTime = CAction::executeTrail( m_trail );
+		m_endTime = CAction::executeTrail( m_trail,g_RoomState.m_Player.m_speed,g_RoomState.m_runState );
 	}
 
 
@@ -722,18 +745,15 @@ void ActTemp::end()
 
 	//find the no up key that this actTemp down
 	::EnterCriticalSection(&CKeyOp::g_csKeyOp);
-	for (auto iter = CKeyOp::m_setKeyOp.begin(); iter != CKeyOp::m_setKeyOp.end();iter++)
+	for (auto iter = CKeyOp::m_keyStateSignal.begin(); iter != CKeyOp::m_keyStateSignal.end();iter++)
 	{
-		if (iter->m_KeyType == CKeyOp::UP && CKeyOp::m_keyStateSignal[iter->m_Key] == iter->m_signal)
+		if (iter->second ==  m_keySignal)
 		{
-			if (firstKeyUp[iter->m_Key] == 0)
-			{
-				CKeyOp upkey(*iter);
-				upkey.m_KeyTime = GetTickCount();
-				qKey.push(upkey);
-			}
+			CKeyOp upkey(iter->first);
+			upkey.m_KeyTime = GetTickCount();
+			upkey.m_KeyType = CKeyOp::UP;
+			qKey.push(upkey);
 		}
-		firstKeyUp[iter->m_Key] = 1;
 	}
 	//delete all key this actTemp press(no include the trail)
 	for (auto it = CKeyOp::m_setKeyOp.begin(); it != CKeyOp::m_setKeyOp.end(); )
@@ -749,6 +769,7 @@ void ActTemp::end()
 	while (!qKey.empty())
 	{
 		CKeyOp::m_setKeyOp.insert(qKey.front());
+
 		qKey.pop();
 	}
 	::LeaveCriticalSection(&CKeyOp::g_csKeyOp);
@@ -826,6 +847,10 @@ void SelMonster::run()
 		if (itAct != g_weight.end())
 		{
 			curWeight = (*iter)->m_output * itAct->second;
+			//if (itAct->second <= 0)
+			//{
+			//	int a = 0;
+			//}
 		}
 		if (curWeight > maxMon1)
 		{
@@ -838,7 +863,10 @@ void SelMonster::run()
 			g_monNeural2 = (*iter);
 		}
 	}
-
+	//if (g_monNeural2 == NULL&& typeid( *g_monNeural1->getClassType()) ==  typeid(MonAttacking))
+	//{
+	//	int afds = 0;
+	//}
 
 
 }
@@ -850,6 +878,82 @@ void MonAny::run()
 }
 
 void MonAny::cal()
+{
+	m_output = m_selfOutput;
+	m_output += Neural::sumUpRelativeWeight(this);
+//	cout <<"monAny: "<< m_output<< " "<<m_Mon.m_vecCMon.size()<<"\t";
+}
+
+CRectangle AddR2ToR1(const CRectangle R1, const CRectangle R2)
+{
+	CRectangle r(R1.x - R2.width / 2, R1.y - R2.height / 2, R1.width + R2.width, R1.height + R2.height );
+	return r;
+}
+
+
+void MonNearPlayer::run()
+{
+	auto &monster = g_RoomState.m_Monster;
+	auto &player = g_RoomState.m_Player;
+	m_Mon.m_vecCMon.clear();
+	CRectangle curArea = AddR2ToR1(player.m_rect, m_nearArea);
+	for (auto iter = monster.m_vecCMon.begin(); iter != monster.m_vecCMon.end() ; iter++)
+	{
+		if (CRectangle::RectCollide(iter->m_rect, curArea) == 1)
+		{
+			m_Mon.m_vecCMon.push_back(*iter);
+		}
+	}
+	m_selfOutput = m_base;
+	m_selfOutput += m_numToScore( m_Mon.m_vecCMon.size());
+
+}
+
+void MonNearPlayer::cal()
+{
+	m_output = m_selfOutput;
+	m_output += Neural::sumUpRelativeWeight(this);
+}
+
+void MonAttacking::run()
+{
+	auto &attackArea = g_RoomState.m_AttackEffect;
+	auto &monster = g_RoomState.m_Monster;
+	DWORD nowTime = ::GetTickCount();
+	m_Mon.m_vecCMon.clear();
+	m_Mon.m_time = nowTime;
+	m_selfOutput = m_base;
+
+	for (auto iter = attackArea.rbegin(); iter != attackArea.rend(); iter++)
+	{
+		if (nowTime - iter->attackTime > 4 * 1000)
+			break;
+		for (auto itMon = monster.m_vecCMon.begin(); itMon != monster.m_vecCMon.end(); itMon++)
+		{
+			if (CRectangle::RectCollide(iter->attackRect, itMon->m_rect) == 1)
+			{
+				int ok = 1;
+				for (auto itDuplicate = m_Mon.m_vecCMon.begin(); itDuplicate != m_Mon.m_vecCMon.end(); itDuplicate++)
+				{
+					if (itDuplicate->m_rect.compare(itMon->m_rect))
+					{
+						ok = 0;
+						break;	
+					}
+				}
+				if (ok == 1)
+				{
+					m_Mon.m_vecCMon.push_back(*itMon);
+				}
+			}
+		}
+	}
+//	cout <<"attacking "<< m_Mon.m_vecCMon.size()<< "\t";
+
+	m_selfOutput += m_numToScore(m_Mon.m_vecCMon.size());
+}
+
+void MonAttacking::cal()
 {
 	m_output = m_selfOutput;
 	m_output += Neural::sumUpRelativeWeight(this);
